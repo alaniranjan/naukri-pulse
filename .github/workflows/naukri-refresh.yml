@@ -1,0 +1,71 @@
+# Runs the Naukri refresh once a day on GitHub's free servers.
+#
+# Naukri blocks headless browsers, so the browser runs with a normal window
+# on a virtual screen (xvfb-run). Nothing is hidden or faked.
+#
+# Needs these repository secrets (Settings -> Secrets and variables -> Actions):
+#   NAUKRI_SESSION_B64  (required)  base64 of naukri-session.json
+#   TG_TOKEN, TG_CHAT   (optional)  Telegram bot, for messages and captcha/OTP help
+
+name: Naukri daily refresh
+
+on:
+  schedule:
+    - cron: "30 3 * * *" # 03:30 UTC = 09:00 AM IST (GitHub may start it a few minutes late)
+  workflow_dispatch: # "Run workflow" button on the Actions tab
+    inputs:
+      task:
+        description: "Day's task to run (mon..sun). Leave empty for today's task."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: naukri-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Same image as the Dockerfile: Node.js + Chromium + xvfb. Version must match package.json.
+    container: mcr.microsoft.com/playwright:v1.63.0-noble
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          npm ci --omit=dev
+          command -v xvfb-run || (apt-get update && apt-get install -y xvfb)
+
+      # runs.json keeps the skill rotation between days. It is kept in the Actions cache
+      # (not committed), so it stays private even though the repo is public.
+      - name: Restore rotation state
+        uses: actions/cache/restore@v4
+        with:
+          path: runs.json
+          key: runs-state-${{ github.run_id }}
+          restore-keys: runs-state-
+
+      - name: Refresh Naukri profile
+        env:
+          NAUKRI_SESSION_B64: ${{ secrets.NAUKRI_SESSION_B64 }}
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT: ${{ secrets.TG_CHAT }}
+          HEADLESS: "false"
+          TASK: ${{ github.event.inputs.task }}
+        run: xvfb-run -a node naukri.js
+
+      - name: Save rotation state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: runs.json
+          key: runs-state-${{ github.run_id }}
+
+      - name: Show last run
+        if: always()
+        run: node -e "try{const r=require('./runs.json');console.log(JSON.stringify(r.history.slice(-1)[0],null,2))}catch{console.log('no runs.json')}"

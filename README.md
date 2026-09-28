@@ -123,6 +123,24 @@ If you ever commit the session file by mistake, log out of Naukri on all devices
 5. Under **Environment Variables**, add `NAUKRI_SESSION_B64`, `TG_TOKEN`, `TG_CHAT`, and `HEADLESS=true`.
 6. Click **Create Cron Job**, then **Trigger Run** to test it.
 
+## 5b. Run free on GitHub Actions (instead of Render)
+
+The workflow `.github/workflows/naukri-refresh.yml` runs the script every day at 9:00 AM IST on GitHub's free servers (free for public repos). The browser runs with a normal window on a virtual screen, because Naukri blocks headless browsers.
+
+1. Push the code to GitHub.
+2. On GitHub, open the repo → **Settings → Secrets and variables → Actions → New repository secret**, and add:
+   - `NAUKRI_SESSION_B64`: the base64 text from step 2 (required)
+   - `TG_TOKEN` and `TG_CHAT`: optional, for Telegram messages and captcha/OTP help
+3. Open the **Actions** tab. If GitHub asks, click **I understand my workflows, go ahead and enable them**.
+4. Click **Naukri daily refresh → Run workflow** to test now. You can type a day (`mon` … `sun`) to test that day's task.
+5. Open the run and read the log. `Naukri profile refreshed` means it works. `Access Denied` means Naukri blocks GitHub's servers: use the laptop schedule instead and disable the workflow.
+
+Notes:
+- Secrets stay hidden even though the repo is public.
+- The skill rotation (`runs.json`) is kept in the Actions cache, not committed, so it stays private.
+- Scheduled runs can start 5–30 minutes late, and GitHub pauses scheduled workflows after 60 days with no commits to the repo. Re-enable it on the Actions tab if that happens.
+- When the login expires, update the `NAUKRI_SESSION_B64` secret with a fresh one.
+
 ## 6. Test locally
 
 ```bash

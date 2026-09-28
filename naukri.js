@@ -559,11 +559,16 @@ async function withNaukri(title, fn) {
     // Naukri's firewall (Akamai) blocks some browsers outright, e.g. headless Chromium.
     const bodyText = await page.locator('body').innerText({ timeout: 5000 }).catch(() => '');
     if (/access denied/i.test(bodyText)) {
-      throw new Error('Naukri blocked this browser ("Access Denied"). Headless mode is blocked - run on your laptop with HEADLESS=false.');
+      throw new Error(
+        headless
+          ? 'Naukri blocked this browser ("Access Denied"). Headless mode is blocked - run with HEADLESS=false.'
+          : 'Naukri blocked this browser ("Access Denied"). It may be blocking this server\'s network - run on your laptop instead.'
+      );
     }
 
     if (await needsHuman(page)) {
-      if (headless) {
+      // Headless, or a server like GitHub Actions (CI=true) where nobody sees the window: ask on Telegram.
+      if (headless || process.env.CI) {
         await solveWithTelegram(page, context);
       } else {
         await waitForHumanOnLaptop(page, context);
