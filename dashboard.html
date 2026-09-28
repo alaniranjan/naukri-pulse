@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Naukri Refresh</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #5d6677; --line: #dde1e8;
+    --accent: #2f5bd3; --accent-text: #ffffff; --ok: #1e7a45; --bad: #b3261e; --warn: #8a5a00;
+    --today: #eaf0ff; --code: #f0f2f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c; --panel: #1c2027; --text: #e6e8ec; --muted: #9aa3b2; --line: #2e343e;
+      --accent: #7c9cff; --accent-text: #0e1320; --ok: #5ccf8a; --bad: #ff8a80; --warn: #e6b450;
+      --today: #232c42; --code: #11141a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 22px; margin: 0; }
+  .sub { color: var(--muted); font-size: 14px; }
+  nav { display: flex; gap: 4px; margin: 20px 0 16px; border-bottom: 1px solid var(--line); }
+  nav button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 8px 14px; font: inherit; cursor: pointer; }
+  nav button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+  .panel h2 { font-size: 16px; margin: 0 0 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  tr.today td { background: var(--today); font-weight: 600; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .btn { display: inline-block; } button.btn, a.btn { background: var(--accent); color: var(--accent-text); border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+  button.btn.secondary, a.btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  button.btn:disabled { opacity: .5; cursor: not-allowed; }
+  select, input, textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
+  select { width: auto; }
+  textarea { resize: vertical; }
+  label { display: block; font-weight: 600; font-size: 14px; margin: 14px 0 6px; }
+  .count { color: var(--muted); font-size: 12px; font-weight: 400; float: right; }
+  .count.over { color: var(--bad); font-weight: 600; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+  pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-size: 12.5px; max-height: 360px; overflow: auto; white-space: pre-wrap; word-break: break-word; margin: 12px 0 0; }
+  .ok { color: var(--ok); font-weight: 600; }
+  .bad { color: var(--bad); font-weight: 600; }
+  .warn { color: var(--warn); }
+  .msg { margin-top: 12px; font-size: 14px; }
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 14px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; }
+  .account { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--bad); flex: none; }
+  .dot.on { background: var(--ok); }
+  button.btn.danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+  .lbl { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .lbl-strong { background: #c6efce; color: #0b5a23; } .lbl-good { background: #ddebf7; color: #1f3a5f; }
+  .lbl-maybe { background: #ffeb9c; color: #6b4e00; } .lbl-skip { background: #ffc7ce; color: #8a1c24; }
+  .jobs-wrap { overflow-x: auto; }
+  #jobsTable td { font-size: 13px; }
+  #jobsTable a { color: var(--accent); }
+  .small { font-size: 12px; color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Naukri Refresh</h1>
+    <span class="sub" id="todayLine"></span>
+  </header>
+
+  <div class="panel account" aria-live="polite">
+    <div>
+      <div class="badge"><span class="dot" id="accountDot"></span><span id="accountState">Checking…</span></div>
+      <div class="sub" id="accountSub"></div>
+    </div>
+    <div class="row">
+      <button class="btn" id="loginBtn">Log in</button>
+      <button class="btn danger" id="logoutBtn">Log out</button>
+    </div>
+  </div>
+
+  <nav role="tablist">
+    <button role="tab" data-tab="today" aria-selected="true">Today</button>
+    <button role="tab" data-tab="settings" aria-selected="false">Settings</button>
+    <button role="tab" data-tab="history" aria-selected="false">History</button>
+    <button role="tab" data-tab="jobs" aria-selected="false">Jobs</button>
+  </nav>
+
+  <!-- TODAY -->
+  <section data-panel="today">
+    <div class="panel">
+      <h2>Weekly plan (IST)</h2>
+      <table><thead><tr><th>Day</th><th>Change</th></tr></thead><tbody id="scheduleBody"></tbody></table>
+    </div>
+
+    <div class="panel">
+      <h2>Rotation state</h2>
+      <dl class="kv">
+        <dt>Next skill to add (Wed)</dt><dd id="nextSkill">–</dd>
+        <dt>Skill to remove (Fri)</dt><dd id="addedSkill">–</dd>
+      </dl>
+    </div>
+
+    <div class="panel">
+      <h2>Run now</h2>
+      <div class="row">
+        <button class="btn" id="runToday">Run today's task</button>
+        <select id="daySelect" aria-label="Pick a day's task"></select>
+        <button class="btn secondary" id="runDay">Run this task</button>
+        <button class="btn secondary" id="applyBtn" title="Set base headline, summary and core skills on Naukri">Push settings to profile</button>
+      </div>
+      <p class="sub">A browser window opens on this computer. Keep runs to about one a day.</p>
+      <div id="jobStatus" class="msg"></div>
+      <pre id="jobLog" hidden></pre>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section data-panel="settings" hidden>
+    <form class="panel" id="settingsForm">
+      <h2>Headlines</h2>
+      <label for="hBase">Base (Sunday, and "Push settings") <span class="count" data-for="hBase"></span></label>
+      <textarea id="hBase" rows="2" data-max="headline"></textarea>
+      <label for="hB">Variant B (Tuesday) <span class="count" data-for="hB"></span></label>
+      <textarea id="hB" rows="2" data-max="headline"></textarea>
+      <label for="hC">Variant C (Saturday) <span class="count" data-for="hC"></span></label>
+      <textarea id="hC" rows="2" data-max="headline"></textarea>
+
+      <label for="summary">Profile summary <span class="count" data-for="summary"></span></label>
+      <textarea id="summary" rows="8" data-max="summary"></textarea>
+
+      <div class="grid2">
+        <div>
+          <label for="core">Core skills (never removed) <span class="count" id="coreCount"></span></label>
+          <textarea id="core" rows="14" placeholder="One skill per line"></textarea>
+        </div>
+        <div>
+          <label for="rotating">Rotating pool <span class="count" id="rotCount"></span></label>
+          <textarea id="rotating" rows="14" placeholder="One skill per line"></textarea>
+        </div>
+      </div>
+
+      <label for="maxSkills">Max skills on profile</label>
+      <input id="maxSkills" type="number" min="1" max="50" style="max-width:120px">
+
+      <div class="row" style="margin-top:16px">
+        <button class="btn" type="submit">Save settings</button>
+        <button class="btn secondary" type="button" id="reloadSettings">Discard changes</button>
+      </div>
+      <div id="settingsMsg" class="msg"></div>
+      <p class="sub">Saving only changes settings.json. Use "Push settings to profile" on the Today tab to copy the base headline, summary and core skills to Naukri.</p>
+    </form>
+  </section>
+
+  <!-- HISTORY -->
+  <section data-panel="history" hidden>
+    <div class="panel">
+      <h2>Recent runs</h2>
+      <table><thead><tr><th>When (IST)</th><th>Task</th><th>Result</th></tr></thead><tbody id="historyBody"></tbody></table>
+      <p class="sub" id="historyEmpty" hidden>No runs yet.</p>
+    </div>
+  </section>
+  <!-- JOBS -->
+  <section data-panel="jobs" hidden>
+    <div class="panel">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">Job search results</h2>
+        <div class="row">
+          <a class="btn" id="dlXlsx" href="#" style="text-decoration:none">Download Excel</a>
+          <a class="btn secondary" id="dlCsv" href="#" style="text-decoration:none">Download CSV</a>
+        </div>
+      </div>
+      <p class="sub" id="jobsInfo"></p>
+      <div class="row" style="margin-bottom:10px">
+        <input id="jobsFilter" placeholder="Filter by title, company, city, skill…" style="max-width:320px">
+        <select id="jobsLabel" aria-label="Match label">
+          <option value="">All labels</option><option>Good match</option><option>Maybe</option><option>Skip</option><option>Strong match</option>
+        </select>
+      </div>
+      <div class="jobs-wrap">
+        <table id="jobsTable"><thead><tr><th>Score</th><th>Job</th><th>Location</th><th>Exp</th><th>Posted</th><th>Missing core skills</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const DAY_NAMES = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday', apply: 'Push settings', account: 'Account' };
+let loggedIn = false;
+let limits = { headline: 250, summary: 1000 };
+let pollTimer = null;
+
+function text(el, value) { el.textContent = value; }
+function ist(iso) { return new Date(iso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }); }
+function lines(value) { return value.split('\n').map((s) => s.trim()).filter(Boolean); }
+
+async function api(method, url, body) {
+  const res = await fetch(url, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data.error || (data.errors || []).join(' ') || res.statusText), { data });
+  return data;
+}
+
+// ---------- Tabs ----------
+function showTab(name) {
+  document.querySelectorAll('nav button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+  document.querySelectorAll('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== name; });
+  try { localStorage.setItem('tab', name); } catch {}
+  if (name === 'history') loadHistory();
+  if (name === 'jobs') loadJobs();
+}
+document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+// ---------- Today ----------
+function renderStatus(s) {
+  limits = s.limits;
+  text($('todayLine'), `Today is ${DAY_NAMES[s.today]}: ${s.schedule[s.today].label.toLowerCase()}`);
+
+  const body = $('scheduleBody');
+  body.replaceChildren();
+  for (const d of DAYS) {
+    const tr = document.createElement('tr');
+    if (d === s.today) tr.className = 'today';
+    const a = document.createElement('td'); text(a, DAY_NAMES[d] + (d === s.today ? ' (today)' : ''));
+    const b = document.createElement('td'); text(b, s.schedule[d].label);
+    tr.append(a, b);
+    body.append(tr);
+  }
+
+  const sel = $('daySelect');
+  if (!sel.options.length) {
+    for (const d of DAYS) {
+      const o = document.createElement('option');
+      o.value = d; o.textContent = `${DAY_NAMES[d]}: ${s.schedule[d].label}`;
+      sel.append(o);
+    }
+    sel.value = s.today;
+  }
+
+  renderAccount(s.account);
+  text($('nextSkill'), s.nextSkill || '–');
+  text($('addedSkill'), s.state.addedSkill || 'none');
+  renderJob(s.job);
+}
+
+function renderAccount(a) {
+  loggedIn = a.loggedIn || a.envSession;
+  $('accountDot').classList.toggle('on', loggedIn);
+  text($('accountState'), loggedIn ? 'Logged in to Naukri' : 'Not logged in');
+  let sub = a.loggedIn ? `Login saved ${ist(a.savedAt)} IST.` : 'Click "Log in", then sign in to Naukri in the browser window that opens (3 minutes).';
+  if (a.envSession) sub += ' Note: NAUKRI_SESSION_B64 is set in .env, and the scripts use it instead of this login.';
+  text($('accountSub'), sub);
+  text($('loginBtn'), a.loggedIn ? 'Switch account' : 'Log in');
+  $('logoutBtn').hidden = !a.loggedIn;
+}
+
+function renderJob(job) {
+  const busy = Boolean(job && job.running);
+  ['runToday', 'runDay', 'applyBtn'].forEach((id) => { $(id).disabled = busy || !loggedIn; });
+  ['loginBtn', 'logoutBtn'].forEach((id) => { $(id).disabled = busy; });
+  const st = $('jobStatus');
+  st.replaceChildren();
+  if (!job) { $('jobLog').hidden = true; return; }
+
+  const span = document.createElement('span');
+  if (busy) { span.className = 'warn'; text(span, `${job.name}: running…`); }
+  else if (job.exitCode === 0) { span.className = 'ok'; text(span, `${job.name}: done`); }
+  else { span.className = 'bad'; text(span, `${job.name}: failed (exit ${job.exitCode})`); }
+  st.append(span);
+
+  const log = $('jobLog');
+  log.hidden = false;
+  const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
+  text(log, job.log || '(no output yet)');
+  if (atBottom) log.scrollTop = log.scrollHeight;
+
+  clearTimeout(pollTimer);
+  if (busy) pollTimer = setTimeout(refreshStatus, 1500);
+}
+
+async function refreshStatus() {
+  try { renderStatus(await api('GET', '/api/status')); }
+  catch (e) { text($('jobStatus'), 'Cannot reach the dashboard server: ' + e.message); }
+}
+
+async function start(url, body) {
+  try { await api('POST', url, body || {}); }
+  catch (e) { text($('jobStatus'), e.message); }
+  refreshStatus();
+}
+
+$('runToday').addEventListener('click', () => start('/api/run'));
+$('runDay').addEventListener('click', () => start('/api/run', { day: $('daySelect').value }));
+$('loginBtn').addEventListener('click', () => {
+  if (loggedIn && !confirm('Log in with another Naukri account? The saved login is replaced when you finish, and the skill rotation starts fresh.')) return;
+  showTab('today');
+  start('/api/login');
+});
+$('logoutBtn').addEventListener('click', async () => {
+  if (!confirm('Log out? This deletes the saved Naukri login from this computer. Daily runs stop until you log in again.')) return;
+  await start('/api/logout');
+});
+$('applyBtn').addEventListener('click', () => {
+  if (confirm('Copy the base headline, summary and core skills from Settings to your live Naukri profile?')) start('/api/apply');
+});
+
+// ---------- Settings ----------
+function updateCounts() {
+  document.querySelectorAll('textarea[data-max]').forEach((ta) => {
+    const max = limits[ta.dataset.max];
+    const el = document.querySelector(`.count[data-for="${ta.id}"]`);
+    const n = ta.value.trim().length;
+    text(el, `${n} / ${max}`);
+    el.classList.toggle('over', n > max);
+  });
+  const core = lines($('core').value).length;
+  const max = Number($('maxSkills').value) || 0;
+  text($('coreCount'), `${core} skills (max ${max})`);
+  $('coreCount').classList.toggle('over', core >= max);
+  text($('rotCount'), `${lines($('rotating').value).length} skills`);
+}
+
+async function loadSettings() {
+  const s = await api('GET', '/api/settings');
+  $('hBase').value = s.headlines.base;
+  $('hB').value = s.headlines.variantB;
+  $('hC').value = s.headlines.variantC;
+  $('summary').value = s.summary;
+  $('core').value = s.coreSkills.join('\n');
+  $('rotating').value = s.rotatingSkills.join('\n');
+  $('maxSkills').value = s.maxSkills;
+  updateCounts();
+  text($('settingsMsg'), '');
+}
+
+$('settingsForm').addEventListener('input', updateCounts);
+$('reloadSettings').addEventListener('click', loadSettings);
+$('settingsForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = $('settingsMsg');
+  msg.replaceChildren();
+  const body = {
+    headlines: { base: $('hBase').value, variantB: $('hB').value, variantC: $('hC').value },
+    summary: $('summary').value,
+    coreSkills: lines($('core').value),
+    rotatingSkills: lines($('rotating').value),
+    maxSkills: Number($('maxSkills').value),
+  };
+  try {
+    await api('PUT', '/api/settings', body);
+    const ok = document.createElement('span'); ok.className = 'ok'; text(ok, 'Saved.');
+    msg.append(ok);
+    refreshStatus();
+  } catch (err) {
+    const errors = (err.data && err.data.errors) || [err.message];
+    const ul = document.createElement('ul'); ul.className = 'bad';
+    for (const line of errors) { const li = document.createElement('li'); text(li, line); ul.append(li); }
+    msg.append(ul);
+  }
+});
+
+// ---------- History ----------
+async function loadHistory() {
+  const runs = await api('GET', '/api/runs');
+  const body = $('historyBody');
+  body.replaceChildren();
+  const rows = runs.history.slice().reverse();
+  $('historyEmpty').hidden = rows.length > 0;
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    const when = document.createElement('td'); text(when, ist(r.at));
+    const task = document.createElement('td'); text(task, `${DAY_NAMES[r.day] || r.day}: ${r.task}`);
+    const res = document.createElement('td');
+    const badge = document.createElement('span'); badge.className = r.ok ? 'ok' : 'bad'; text(badge, r.ok ? 'OK ' : 'FAILED ');
+    const detail = document.createElement('span'); text(detail, r.detail || '');
+    res.append(badge, detail);
+    tr.append(when, task, res);
+    body.append(tr);
+  }
+}
+
+// ---------- Jobs ----------
+let allJobs = [];
+async function loadJobs() {
+  const data = await api('GET', '/api/jobs');
+  allJobs = data.jobs || [];
+  const dl = (id, file) => { const a = $(id); a.hidden = !file; if (file) a.href = '/jobs/' + encodeURIComponent(file); };
+  dl('dlXlsx', data.xlsx); dl('dlCsv', data.csv);
+  renderJobs();
+}
+function renderJobs() {
+  const q = $('jobsFilter').value.trim().toLowerCase();
+  const lab = $('jobsLabel').value;
+  const rows = allJobs.filter((j) => (!lab || j['Match Label'] === lab) &&
+    (!q || [j['Job Title'], j.Company, j.Location, j['Skills Required']].join(' ').toLowerCase().includes(q)));
+  text($('jobsInfo'), allJobs.length
+    ? `${rows.length} of ${allJobs.length} jobs, found ${allJobs[0]['Date Found']}. Sorted by match score.`
+    : 'No job results yet.');
+  const body = document.querySelector('#jobsTable tbody');
+  body.replaceChildren();
+  const cls = { 'Strong match': 'lbl-strong', 'Good match': 'lbl-good', 'Maybe': 'lbl-maybe', 'Skip': 'lbl-skip' };
+  for (const j of rows) {
+    const tr = document.createElement('tr');
+    const sc = document.createElement('td');
+    const badge = document.createElement('span'); badge.className = 'lbl ' + cls[j['Match Label']]; text(badge, `${j['Match Score']} · ${j['Match Label']}`);
+    sc.append(badge);
+    const job = document.createElement('td');
+    const a = document.createElement('a'); a.href = j['Job URL']; a.target = '_blank'; a.rel = 'noopener'; text(a, j['Job Title']);
+    const co = document.createElement('div'); co.className = 'small'; text(co, `${j.Company} · ${j.Source}` + (j.Notes ? ` · ${j.Notes}` : ''));
+    job.append(a, co);
+    const cells = [j.Location, j.Experience, j['Posted Date'], j['Missing Skills']].map((v) => { const td = document.createElement('td'); text(td, v || '–'); return td; });
+    tr.append(sc, job, ...cells);
+    body.append(tr);
+  }
+}
+$('jobsFilter').addEventListener('input', renderJobs);
+$('jobsLabel').addEventListener('change', renderJobs);
+
+// ---------- Start ----------
+refreshStatus().then(loadSettings);
+let startTab = 'today';
+try { startTab = localStorage.getItem('tab') || 'today'; } catch {}
+showTab(['today', 'settings', 'history', 'jobs'].includes(startTab) ? startTab : 'today');
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "naukri-daily-refresh",
+  "version": "1.0.0",
+  "description": "Keeps my Naukri profile fresh with one small change a day (weekly rotation), plus a local dashboard.",
+  "main": "naukri.js",
+  "private": true,
+  "scripts": {
+    "setup": "playwright install chromium",
+    "save-session": "node save-session.js",
+    "start": "node naukri.js",
+    "apply-profile": "node apply-profile.js",
+    "dashboard": "node dashboard.js",
+    "codegen": "playwright codegen https://www.naukri.com"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "playwright": "1.63.0"
+  }
+}

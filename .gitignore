@@ -1,0 +1,18 @@
+# Secrets - NEVER commit these
+naukri-session.json
+*.b64
+.env
+
+# Dependencies
+node_modules
+
+# Playwright / debug output
+test-results
+playwright-report
+*.png
+*.log
+
+# Run history and rotation state (created by the script)
+runs.json
+runs.json.tmp
+settings.json.tmp

@@ -1,0 +1,9 @@
+# Keep secrets and local junk out of the Docker image
+naukri-session.json
+*.b64
+.env
+node_modules
+.git
+*.png
+*.log
+runs.json

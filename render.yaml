@@ -1,0 +1,23 @@
+# Render Blueprint: one Cron Job that runs the Docker image once a day.
+services:
+  - type: cron
+    name: naukri-daily-refresh
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    # Render cron uses UTC. 03:30 UTC = 09:00 AM IST.
+    schedule: "30 3 * * *"
+    # Singapore is the closest Render region to India.
+    region: singapore
+    # Cron Jobs are a paid service on Render.
+    plan: starter
+    envVars:
+      - key: HEADLESS
+        value: "true"
+      # sync:false = Render asks you for the value in the dashboard.
+      # It is never stored in this file or in GitHub.
+      - key: NAUKRI_SESSION_B64
+        sync: false
+      - key: TG_TOKEN
+        sync: false
+      - key: TG_CHAT
+        sync: false

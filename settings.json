@@ -1,0 +1,45 @@
+{
+  "headlines": {
+    "base": "QA Automation Engineer | Playwright, TypeScript, API Testing, CI/CD | 2 Years Experience | AI-Assisted Testing with Claude",
+    "variantB": "SDET | Playwright Automation Engineer | TypeScript, API Testing, GitHub Actions | 2 Years Experience | AI-Assisted Test Automation",
+    "variantC": "Test Automation Engineer | Playwright, JavaScript, Page Object Model, CI/CD | Reducing Regression Time with AI-Assisted Testing"
+  },
+  "summary": "QA Automation Engineer with 2 years of experience building and maintaining end-to-end test suites using Playwright and TypeScript/JavaScript. Skilled in Page Object Model, fixtures, API testing, cross-browser and parallel execution, and handling flaky tests. Experience running automated tests in CI/CD pipelines with GitHub Actions. I use AI tools such as Claude to generate test cases, speed up framework development, and analyze failed test logs, while reviewing and understanding all code. Comfortable with Git, bug reporting, and working in Agile teams.",
+  "coreSkills": [
+    "Playwright",
+    "Test Automation",
+    "QA Automation",
+    "TypeScript",
+    "JavaScript",
+    "API Testing",
+    "Page Object Model",
+    "Regression Testing",
+    "Functional Testing",
+    "Git",
+    "CI/CD",
+    "GitHub Actions"
+  ],
+  "rotatingSkills": [
+    "Postman",
+    "REST API",
+    "Cross Browser Testing",
+    "Parallel Execution",
+    "Test Automation Framework",
+    "Jenkins",
+    "Docker",
+    "Allure Report",
+    "SQL",
+    "Selenium",
+    "Jira",
+    "Agile",
+    "Manual Testing",
+    "Smoke Testing",
+    "Sanity Testing",
+    "Bug Tracking",
+    "AI Testing",
+    "Prompt Engineering",
+    "Claude",
+    "Playwright MCP"
+  ],
+  "maxSkills": 20
+}
