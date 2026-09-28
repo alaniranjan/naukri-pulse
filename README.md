@@ -141,6 +141,17 @@ Notes:
 - Scheduled runs can start 5–30 minutes late, and GitHub pauses scheduled workflows after 60 days with no commits to the repo. Re-enable it on the Actions tab if that happens.
 - When the login expires, update the `NAUKRI_SESSION_B64` secret with a fresh one.
 
+### Web dashboard on GitHub Pages
+
+After pushing, open **https://alaniranjan.github.io/naukri-pulse/** (repo Settings → Pages → Source: *Deploy from a branch*, branch `main`, folder `/docs`).
+
+- **Start / Stop daily refresh:** turns the 9 AM schedule on or off.
+- **Run now:** runs today's task, or any day's task, straight away.
+- **Recent runs:** result of each run, with a link to its log.
+- **Settings:** edit headlines, summary and skills. Saving commits `settings.json` to the repo, so run `git pull` on your laptop before editing there.
+
+To use the buttons, paste a fine-grained token for this repo with **Actions: Read and write** and **Contents: Read and write**. It is stored only in your browser.
+
 ## 6. Test locally
 
 ```bash

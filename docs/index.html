@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Naukri Pulse</title>
+<meta name="description" content="Start, stop and run the daily Naukri profile refresh on GitHub Actions.">
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #5d6677; --line: #dde1e8;
+    --accent: #2f5bd3; --accent-text: #ffffff; --ok: #1e7a45; --bad: #b3261e; --warn: #8a5a00; --code: #f0f2f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171c; --panel: #1c2027; --text: #e6e8ec; --muted: #9aa3b2; --line: #2e343e;
+      --accent: #7c9cff; --accent-text: #0e1320; --ok: #5ccf8a; --bad: #ff8a80; --warn: #e6b450; --code: #11141a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-top: 16px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .spread { justify-content: space-between; }
+  .btn { background: var(--accent); color: var(--accent-text); border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  .btn.start { background: var(--ok); color: #fff; }
+  .btn.stop { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  input, select, textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
+  select { width: auto; }
+  label { display: block; font-weight: 600; font-size: 14px; margin: 14px 0 6px; }
+  .count { float: right; color: var(--muted); font-size: 12px; font-weight: 400; }
+  .count.over { color: var(--bad); font-weight: 600; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); }
+  .big { font-size: 18px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); }
+  .dot.on { background: var(--ok); } .dot.off { background: var(--bad); }
+  .ok { color: var(--ok); font-weight: 600; } .bad { color: var(--bad); font-weight: 600; } .warn { color: var(--warn); font-weight: 600; }
+  .msg { margin-top: 10px; font-size: 14px; min-height: 1.5em; }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  details summary { cursor: pointer; font-weight: 600; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Naukri Pulse</h1>
+    <span class="sub" id="repoLine"></span>
+  </header>
+
+  <!-- TOKEN -->
+  <div class="panel" id="tokenPanel">
+    <div class="row spread">
+      <h2 style="margin:0">GitHub access</h2>
+      <span id="tokenState" class="sub"></span>
+    </div>
+    <div id="tokenForm">
+      <p class="sub">Viewing works without a token. To start, stop, run or save settings, paste a
+        <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained token</a>
+        for this repo with <b>Actions: Read and write</b> and <b>Contents: Read and write</b>.
+        It is saved only in this browser and sent only to api.github.com.</p>
+      <div class="row">
+        <input id="tokenInput" type="password" placeholder="github_pat_…" autocomplete="off" style="max-width:420px">
+        <button class="btn" id="saveToken">Save token</button>
+      </div>
+    </div>
+    <div class="row" id="tokenSaved" hidden>
+      <button class="btn secondary" id="forgetToken">Forget token</button>
+    </div>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="panel">
+    <div class="row spread">
+      <span class="big"><span class="dot" id="dot"></span><span id="scheduleState">Loading…</span></span>
+      <div class="row">
+        <button class="btn start" id="startBtn" hidden>Start daily refresh</button>
+        <button class="btn stop" id="stopBtn" hidden>Stop daily refresh</button>
+      </div>
+    </div>
+    <p class="sub" id="scheduleSub">Runs every day at about 9:00 AM IST on GitHub Actions.</p>
+    <div class="row">
+      <select id="daySelect" aria-label="Task">
+        <option value="">Today's task</option>
+        <option value="mon">Mon: toggle headline full stop</option>
+        <option value="tue">Tue: headline variant B</option>
+        <option value="wed">Wed: add a rotating skill</option>
+        <option value="thu">Thu: toggle summary full stop</option>
+        <option value="fri">Fri: remove Wednesday's skill</option>
+        <option value="sat">Sat: headline variant C</option>
+        <option value="sun">Sun: base headline</option>
+      </select>
+      <button class="btn secondary" id="runBtn">Run now</button>
+    </div>
+    <div class="msg" id="actionMsg" aria-live="polite"></div>
+  </div>
+
+  <!-- RUNS -->
+  <div class="panel">
+    <div class="row spread">
+      <h2 style="margin:0">Recent runs</h2>
+      <button class="btn secondary" id="refreshBtn">Refresh</button>
+    </div>
+    <table style="margin-top:10px">
+      <thead><tr><th>When (IST)</th><th>How</th><th>Result</th><th></th></tr></thead>
+      <tbody id="runsBody"></tbody>
+    </table>
+    <p class="sub" id="runsEmpty" hidden>No runs yet. Click "Run now" to test.</p>
+  </div>
+
+  <!-- SETTINGS -->
+  <form class="panel" id="settingsForm">
+    <details id="settingsDetails">
+      <summary>Settings (headlines, summary, skills)</summary>
+      <label for="hBase">Base headline (Sunday) <span class="count" data-for="hBase"></span></label>
+      <textarea id="hBase" rows="2" data-max="250"></textarea>
+      <label for="hB">Variant B (Tuesday) <span class="count" data-for="hB"></span></label>
+      <textarea id="hB" rows="2" data-max="250"></textarea>
+      <label for="hC">Variant C (Saturday) <span class="count" data-for="hC"></span></label>
+      <textarea id="hC" rows="2" data-max="250"></textarea>
+      <label for="summary">Profile summary <span class="count" data-for="summary"></span></label>
+      <textarea id="summary" rows="7" data-max="1000"></textarea>
+      <div class="grid2">
+        <div>
+          <label for="core">Core skills (never removed) <span class="count" id="coreCount"></span></label>
+          <textarea id="core" rows="12" placeholder="One skill per line"></textarea>
+        </div>
+        <div>
+          <label for="rotating">Rotating pool <span class="count" id="rotCount"></span></label>
+          <textarea id="rotating" rows="12" placeholder="One skill per line"></textarea>
+        </div>
+      </div>
+      <label for="maxSkills">Max skills on profile</label>
+      <input id="maxSkills" type="number" min="1" max="50" style="max-width:120px">
+      <div class="row" style="margin-top:16px">
+        <button class="btn" type="submit" id="saveSettings">Save settings to GitHub</button>
+        <button class="btn secondary" type="button" id="reloadSettings">Discard changes</button>
+      </div>
+      <div class="msg" id="settingsMsg"></div>
+      <p class="sub">Saving commits <code>settings.json</code> to the repo. The next run uses it. The headline and summary on Naukri change on the days that use them.</p>
+    </details>
+  </form>
+
+  <p class="sub" style="margin-top:20px">Login to Naukri and "Push settings to profile" still happen on your laptop (<code>npm run dashboard</code>). When the Naukri login expires, update the <code>NAUKRI_SESSION_B64</code> secret in the repo settings.</p>
+</div>
+
+<script>
+// ---------- Repo ----------
+// On GitHub Pages the URL is https://<owner>.github.io/<repo>/
+const host = location.hostname.endsWith('github.io') ? location.hostname.split('.')[0] : 'alaniranjan';
+const repoName = location.hostname.endsWith('github.io') ? (location.pathname.split('/')[1] || 'naukri-pulse') : 'naukri-pulse';
+const REPO = `${host}/${repoName}`;
+const WORKFLOW = 'naukri-refresh.yml';
+const API = `https://api.github.com/repos/${REPO}`;
+const $ = (id) => document.getElementById(id);
+const text = (el, v) => { el.textContent = v; };
+
+// ---------- Token (this browser only) ----------
+function getToken() { try { return localStorage.getItem('gh_token') || ''; } catch { return ''; } }
+function setToken(t) { try { t ? localStorage.setItem('gh_token', t) : localStorage.removeItem('gh_token'); } catch {} }
+
+function renderToken() {
+  const has = Boolean(getToken());
+  $('tokenForm').hidden = has;
+  $('tokenSaved').hidden = !has;
+  text($('tokenState'), has ? 'Token saved in this browser' : 'Read-only');
+  ['startBtn', 'stopBtn', 'runBtn', 'saveSettings'].forEach((id) => { $(id).disabled = !has; });
+}
+$('saveToken').addEventListener('click', () => {
+  const t = $('tokenInput').value.trim();
+  if (!t) return;
+  setToken(t); $('tokenInput').value = '';
+  renderToken(); loadAll();
+});
+$('forgetToken').addEventListener('click', () => { setToken(''); renderToken(); });
+
+// ---------- GitHub API ----------
+async function gh(method, path, body) {
+  const headers = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (body) headers['Content-Type'] = 'application/json';
+  const res = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
+  if (res.status === 204) return null;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    let hint = data.message || res.statusText;
+    if (res.status === 401) hint = 'Token is invalid or expired. Save a new one.';
+    if (res.status === 403 || res.status === 404) hint += ' (Does the token have Actions + Contents "Read and write" for this repo?)';
+    throw new Error(hint);
+  }
+  return data;
+}
+
+function say(el, cls, msg) {
+  el.replaceChildren();
+  const s = document.createElement('span'); s.className = cls; text(s, msg); el.append(s);
+}
+
+// ---------- Schedule: start / stop / run ----------
+async function loadWorkflow() {
+  try {
+    const wf = await gh('GET', `/actions/workflows/${WORKFLOW}`);
+    const active = wf.state === 'active';
+    $('dot').className = 'dot ' + (active ? 'on' : 'off');
+    text($('scheduleState'), active ? 'Daily refresh is ON' : 'Daily refresh is OFF');
+    $('startBtn').hidden = active;
+    $('stopBtn').hidden = !active;
+  } catch (e) {
+    text($('scheduleState'), 'Could not read the workflow');
+    say($('actionMsg'), 'bad', e.message);
+  }
+}
+
+async function act(label, fn) {
+  say($('actionMsg'), 'warn', label + '…');
+  try { await fn(); } catch (e) { say($('actionMsg'), 'bad', e.message); return false; }
+  return true;
+}
+
+$('startBtn').addEventListener('click', async () => {
+  if (await act('Starting', () => gh('PUT', `/actions/workflows/${WORKFLOW}/enable`))) {
+    say($('actionMsg'), 'ok', 'Started. It will run every day at about 9:00 AM IST.');
+    loadWorkflow();
+  }
+});
+$('stopBtn').addEventListener('click', async () => {
+  if (!confirm('Stop the daily Naukri refresh? You can start it again any time.')) return;
+  if (await act('Stopping', () => gh('PUT', `/actions/workflows/${WORKFLOW}/disable`))) {
+    say($('actionMsg'), 'ok', 'Stopped. No more daily runs until you click Start.');
+    loadWorkflow();
+  }
+});
+$('runBtn').addEventListener('click', async () => {
+  const task = $('daySelect').value;
+  const ok = await act('Starting a run', () => gh('POST', `/actions/workflows/${WORKFLOW}/dispatches`, { ref: 'main', inputs: { task } }));
+  if (ok) {
+    say($('actionMsg'), 'ok', 'Run started. It appears below in a few seconds and takes about 2 minutes.');
+    setTimeout(loadRuns, 4000);
+    setTimeout(loadRuns, 15000);
+  }
+});
+
+// ---------- Runs ----------
+let runsTimer = null;
+async function loadRuns() {
+  clearTimeout(runsTimer);
+  let data;
+  try { data = await gh('GET', `/actions/workflows/${WORKFLOW}/runs?per_page=10`); }
+  catch (e) { return; }
+  const body = $('runsBody');
+  body.replaceChildren();
+  const runs = data.workflow_runs || [];
+  $('runsEmpty').hidden = runs.length > 0;
+  let busy = false;
+  for (const r of runs) {
+    const tr = document.createElement('tr');
+    const when = document.createElement('td');
+    text(when, new Date(r.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }));
+    const how = document.createElement('td');
+    text(how, r.event === 'schedule' ? 'Daily schedule' : r.event === 'workflow_dispatch' ? 'Run now' : r.event);
+    const res = document.createElement('td');
+    const s = document.createElement('span');
+    if (r.status !== 'completed') { s.className = 'warn'; text(s, 'Running…'); busy = true; }
+    else if (r.conclusion === 'success') { s.className = 'ok'; text(s, 'Refreshed'); }
+    else { s.className = 'bad'; text(s, r.conclusion === 'cancelled' ? 'Cancelled' : 'Failed'); }
+    res.append(s);
+    const link = document.createElement('td');
+    const a = document.createElement('a'); a.href = r.html_url; a.target = '_blank'; a.rel = 'noopener'; text(a, 'View log');
+    link.append(a);
+    tr.append(when, how, res, link);
+    body.append(tr);
+  }
+  if (busy) runsTimer = setTimeout(loadRuns, 10000);
+}
+$('refreshBtn').addEventListener('click', () => { loadWorkflow(); loadRuns(); });
+
+// ---------- Settings (settings.json in the repo) ----------
+let settingsSha = null;
+const lines = (v) => v.split('\n').map((s) => s.trim()).filter(Boolean);
+const b64decode = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, '')), (c) => c.charCodeAt(0)));
+const b64encode = (str) => { let bin = ''; new TextEncoder().encode(str).forEach((b) => { bin += String.fromCharCode(b); }); return btoa(bin); };
+
+function updateCounts() {
+  document.querySelectorAll('textarea[data-max]').forEach((ta) => {
+    const el = document.querySelector(`.count[data-for="${ta.id}"]`);
+    const n = ta.value.trim().length; const max = Number(ta.dataset.max);
+    text(el, `${n} / ${max}`); el.classList.toggle('over', n > max);
+  });
+  const core = lines($('core').value).length; const max = Number($('maxSkills').value) || 0;
+  text($('coreCount'), `${core} skills (max ${max})`);
+  $('coreCount').classList.toggle('over', core >= max);
+  text($('rotCount'), `${lines($('rotating').value).length} skills`);
+}
+
+async function loadSettings() {
+  try {
+    const f = await gh('GET', '/contents/settings.json?ref=main');
+    settingsSha = f.sha;
+    const s = JSON.parse(b64decode(f.content));
+    $('hBase').value = s.headlines.base; $('hB').value = s.headlines.variantB; $('hC').value = s.headlines.variantC;
+    $('summary').value = s.summary;
+    $('core').value = s.coreSkills.join('\n'); $('rotating').value = s.rotatingSkills.join('\n');
+    $('maxSkills').value = s.maxSkills;
+    updateCounts();
+    text($('settingsMsg'), '');
+  } catch (e) { say($('settingsMsg'), 'bad', 'Could not load settings: ' + e.message); }
+}
+
+// Same checks as settings.js in the repo.
+function validate(s) {
+  const errors = [];
+  for (const [k, v] of Object.entries(s.headlines)) {
+    if (!v) errors.push(`Headline ${k} is empty.`);
+    else if (v.length > 250) errors.push(`Headline ${k} is longer than 250 characters.`);
+    else if (v.split(/\s+/).length < 5) errors.push(`Headline ${k} needs at least 5 words.`);
+  }
+  if (!s.summary) errors.push('Summary is empty.');
+  else if (s.summary.length > 1000) errors.push('Summary is longer than 1000 characters.');
+  for (const key of ['coreSkills', 'rotatingSkills']) {
+    const seen = new Set();
+    for (const sk of s[key]) { const k = sk.toLowerCase(); if (seen.has(k)) errors.push(`${key}: "${sk}" is listed twice.`); seen.add(k); }
+  }
+  if (!Number.isInteger(s.maxSkills) || s.maxSkills < 1 || s.maxSkills > 50) errors.push('Max skills must be 1 to 50.');
+  else if (s.coreSkills.length >= s.maxSkills) errors.push('Keep core skills below max skills, so there is room to rotate.');
+  return errors;
+}
+
+$('settingsForm').addEventListener('input', updateCounts);
+$('reloadSettings').addEventListener('click', loadSettings);
+$('settingsForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const s = {
+    headlines: { base: $('hBase').value.trim(), variantB: $('hB').value.trim(), variantC: $('hC').value.trim() },
+    summary: $('summary').value.trim(),
+    coreSkills: lines($('core').value), rotatingSkills: lines($('rotating').value),
+    maxSkills: Number($('maxSkills').value),
+  };
+  const errors = validate(s);
+  if (errors.length) { say($('settingsMsg'), 'bad', errors.join(' ')); return; }
+  say($('settingsMsg'), 'warn', 'Saving…');
+  try {
+    const r = await gh('PUT', '/contents/settings.json', {
+      message: 'Update settings from dashboard', branch: 'main', sha: settingsSha,
+      content: b64encode(JSON.stringify(s, null, 2) + '\n'),
+    });
+    settingsSha = r.content.sha;
+    say($('settingsMsg'), 'ok', 'Saved to GitHub. The next run uses these settings.');
+  } catch (err) {
+    say($('settingsMsg'), 'bad', err.message.includes('does not match') ? 'Settings changed elsewhere. Click "Discard changes" to reload, then edit again.' : err.message);
+  }
+});
+
+// ---------- Start ----------
+function loadAll() { loadWorkflow(); loadRuns(); loadSettings(); }
+text($('repoLine'), REPO);
+renderToken();
+loadAll();
+</script>
+</body>
+</html>
